@@ -2,12 +2,18 @@ import { useState } from 'react'
 import { ConnectionDialog } from '../connections/ConnectionDialog'
 import { useConnections } from '../connections/store'
 import type { ConnectionConfig } from '../lib/types'
+import { useTabs } from '../tabs/store'
+import { SchemaTree } from './SchemaTree'
 
 export function Sidebar() {
   const { connections, activeId, status, error, setActive, connect, disconnect } = useConnections()
   const [dialog, setDialog] = useState<{ initial?: ConnectionConfig } | null>(null)
   const active = connections.find((c) => c.id === activeId)
   const activeStatus = activeId ? status[activeId] ?? 'disconnected' : 'disconnected'
+  const schemas = useConnections((s) => s.schemas)
+  const refreshSchema = useConnections((s) => s.refreshSchema)
+  const openQuery = useTabs((s) => s.openQuery)
+  const connected = activeStatus === 'connected' && active !== undefined && schemas[active.id] !== undefined
 
   return (
     <aside className="sidebar">
@@ -30,6 +36,15 @@ export function Sidebar() {
         </div>
         {error && <p className="error">{error.message}</p>}
       </div>
+      {active && connected && (
+        <>
+          <div className="row" style={{ padding: '6px 8px' }}>
+            <button className="grow" onClick={() => openQuery(active.id)}>Nouvelle requête</button>
+            <button title="Rafraîchir le schéma" onClick={() => refreshSchema(active.id)}>⟳</button>
+          </div>
+          <SchemaTree connId={active.id} schema={schemas[active.id]} />
+        </>
+      )}
       {dialog && <ConnectionDialog initial={dialog.initial} onClose={() => setDialog(null)} />}
     </aside>
   )
