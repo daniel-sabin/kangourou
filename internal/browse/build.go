@@ -85,6 +85,8 @@ func selectExpr(c schema.Column) string {
 	return id + "::text"
 }
 
+// orderBy qualifies columns with the table name: a bare "id" would resolve to the
+// "id"::text output column and sort lexicographically.
 func orderBy(t *schema.Table, sort *Sort) (string, error) {
 	var parts []string
 	if sort != nil {
@@ -99,13 +101,13 @@ func orderBy(t *schema.Table, sort *Sort) (string, error) {
 		if sort.Desc {
 			dir = "DESC"
 		}
-		parts = append(parts, ident(col.Name)+" "+dir)
+		parts = append(parts, ident(t.Schema, t.Name, col.Name)+" "+dir)
 	}
 	for _, pk := range t.PrimaryKey {
 		if sort != nil && pk == sort.Column {
 			continue
 		}
-		parts = append(parts, ident(pk)+" ASC")
+		parts = append(parts, ident(t.Schema, t.Name, pk)+" ASC")
 	}
 	if len(parts) == 0 {
 		return "", nil

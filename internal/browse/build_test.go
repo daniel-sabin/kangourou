@@ -41,7 +41,7 @@ func TestBuildSelectNoFilter(t *testing.T) {
 	}
 	want := `SELECT "id"::text, "Email"::text, "created_at"::text, "active"::text, "raw"::text, ` +
 		`CASE WHEN octet_length("avatar") > 64 THEN '\x' || encode(substring("avatar" FROM 1 FOR 64), 'hex') || '… (' || octet_length("avatar") || ' bytes)' ELSE "avatar"::text END` +
-		` FROM "public"."users" ORDER BY "id" ASC LIMIT 201 OFFSET 400`
+		` FROM "public"."users" ORDER BY "public"."users"."id" ASC LIMIT 201 OFFSET 400`
 	if q.SQL != want {
 		t.Fatalf("sql:\n%s\nwant:\n%s", q.SQL, want)
 	}
@@ -129,7 +129,7 @@ func TestBuildSelectSort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(q.SQL, `ORDER BY "Email" DESC, "id" ASC LIMIT 201 OFFSET 0`) {
+	if !strings.Contains(q.SQL, `ORDER BY "public"."users"."Email" DESC, "public"."users"."id" ASC LIMIT 201 OFFSET 0`) {
 		t.Fatalf("got %s", q.SQL)
 	}
 	_, err = BuildSelect(usersTable(), Request{Sort: &Sort{Column: "raw"}})
