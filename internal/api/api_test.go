@@ -5,9 +5,9 @@ import (
 	"errors"
 	"io"
 	"net"
+	"path/filepath"
 	"strconv"
 	"sync"
-	"path/filepath"
 	"testing"
 	"time"
 
