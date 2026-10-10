@@ -206,3 +206,27 @@ func TestFetchStatementTimeout(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestFetchPagesWithoutPrimaryKeyDoNotOverlap(t *testing.T) {
+	pool, _ := setup(t)
+	testpg.Exec(t, pool, "CREATE TABLE nopk AS SELECT i FROM generate_series(1, 250) i; CREATE VIEW nopk_v AS SELECT i FROM nopk")
+	s, err := schema.Load(context.Background(), pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"nopk", "nopk_v"} {
+		seen := map[string]bool{}
+		for page := range 2 {
+			r, err := fetch(t, pool, s, table, Request{Page: page}, defaultOpts)
+			if err != nil {
+				t.Fatalf("%s page %d: %v", table, page, err)
+			}
+			for _, row := range r.Rows {
+				seen[*row[0]] = true
+			}
+		}
+		if len(seen) != 250 {
+			t.Errorf("%s: %d distinct rows over 2 pages", table, len(seen))
+		}
+	}
+}

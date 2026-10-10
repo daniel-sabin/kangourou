@@ -138,11 +138,26 @@ func TestBuildSelectSort(t *testing.T) {
 	validationColumn(t, err)
 }
 
-func TestBuildSelectWithoutPrimaryKeyHasNoOrder(t *testing.T) {
+func TestBuildSelectWithoutPrimaryKeyOrdersByPhysicalRow(t *testing.T) {
 	tb := usersTable()
 	tb.PrimaryKey = nil
 	q, _ := BuildSelect(tb, Request{Page: -3})
-	if strings.Contains(q.SQL, "ORDER BY") || !strings.HasSuffix(q.SQL, "LIMIT 201 OFFSET 0") {
+	if !strings.HasSuffix(q.SQL, `ORDER BY "public"."users"."tableoid" ASC, "public"."users"."ctid" ASC LIMIT 201 OFFSET 0`) {
+		t.Fatalf("got %s", q.SQL)
+	}
+	q, _ = BuildSelect(tb, Request{Sort: &Sort{Column: "Email"}})
+	if !strings.Contains(q.SQL, `ORDER BY "public"."users"."Email" ASC, "public"."users"."tableoid" ASC, "public"."users"."ctid" ASC LIMIT`) {
+		t.Fatalf("sorted without pk: %s", q.SQL)
+	}
+}
+
+func TestBuildSelectViewOrdersBySortableColumns(t *testing.T) {
+	tb := usersTable()
+	tb.PrimaryKey = nil
+	tb.Kind = "view"
+	q, _ := BuildSelect(tb, Request{Sort: &Sort{Column: "Email", Desc: true}})
+	want := `ORDER BY "public"."users"."Email" DESC, "public"."users"."id" ASC, "public"."users"."created_at" ASC, "public"."users"."active" ASC, "public"."users"."avatar" ASC LIMIT`
+	if !strings.Contains(q.SQL, want) {
 		t.Fatalf("got %s", q.SQL)
 	}
 }

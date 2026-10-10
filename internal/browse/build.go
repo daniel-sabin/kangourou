@@ -103,16 +103,34 @@ func orderBy(t *schema.Table, sort *Sort) (string, error) {
 		}
 		parts = append(parts, ident(t.Schema, t.Name, col.Name)+" "+dir)
 	}
-	for _, pk := range t.PrimaryKey {
-		if sort != nil && pk == sort.Column {
+	for _, col := range tieBreakers(t) {
+		if sort != nil && col == sort.Column {
 			continue
 		}
-		parts = append(parts, ident(t.Schema, t.Name, pk)+" ASC")
+		parts = append(parts, ident(t.Schema, t.Name, col)+" ASC")
 	}
 	if len(parts) == 0 {
 		return "", nil
 	}
 	return " ORDER BY " + strings.Join(parts, ", "), nil
+}
+
+// tieBreakers makes the row order total so LIMIT/OFFSET pages never overlap or skip rows:
+// the primary key, else the physical row id for heap relations, else every sortable column.
+func tieBreakers(t *schema.Table) []string {
+	if len(t.PrimaryKey) > 0 {
+		return t.PrimaryKey
+	}
+	if t.Kind == "table" || t.Kind == "materialized_view" {
+		return []string{"tableoid", "ctid"}
+	}
+	var cols []string
+	for _, c := range t.Columns {
+		if c.Sortable {
+			cols = append(cols, c.Name)
+		}
+	}
+	return cols
 }
 
 func BuildSelect(t *schema.Table, req Request) (Query, error) {
