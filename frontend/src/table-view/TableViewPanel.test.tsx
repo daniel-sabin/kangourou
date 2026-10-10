@@ -80,3 +80,16 @@ test('a superseded request is cancelled on the backend', async () => {
   render(<TableViewPanel tab={updated} view={updated.views[0]} />)
   expect(api.cancelFetch).toHaveBeenCalledWith(firstId)
 })
+
+test('popover on a row that disappears after reload closes instead of crashing', async () => {
+  renderPanel()
+  fireEvent.doubleClick(await screen.findByText('11'))
+  expect(screen.getByRole('dialog', { name: 'id' })).toBeInTheDocument()
+  vi.mocked(api.fetchRows).mockResolvedValue({
+    columns: ['id', 'user_id'], rows: [['10', '42']], primaryKey: ['id'],
+    total: 1, totalIsEstimate: false, hasMore: false, page: 0, pageSize: 200,
+  })
+  fireEvent.click(screen.getByTitle('Recharger'))
+  await waitFor(() => expect(screen.getByText('1 ligne')).toBeInTheDocument())
+  expect(screen.queryByRole('dialog', { name: 'id' })).not.toBeInTheDocument()
+})

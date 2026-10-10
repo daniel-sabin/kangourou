@@ -42,6 +42,9 @@ export function TableViewPanel({ tab, view }: { tab: TableGroupTab; view: TableV
         if (cancelled) return
         setResult(r)
         setError(null)
+        // row indices refer to the previous result
+        setMenu(null)
+        setPopover(null)
       })
       .catch((e: AppError) => {
         if (cancelled) return
@@ -121,10 +124,10 @@ export function TableViewPanel({ tab, view }: { tab: TableGroupTab; view: TableV
         onPage={(page) => updateView(tab.id, view.id, { page })}
         onReload={() => setManualReload((n) => n + 1)}
       />
-      {menu && (
+      {menu && rows[menu.row] && (
         <ReferencedByMenu connId={tab.connId} table={table} columns={columns} row={rows[menu.row]} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />
       )}
-      {popover && (
+      {popover && rows[popover.row] && (
         <CellPopover column={columns[popover.col]} value={rows[popover.row][popover.col]} onClose={() => setPopover(null)} />
       )}
     </div>
