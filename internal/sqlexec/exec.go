@@ -4,6 +4,9 @@ package sqlexec
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,7 +32,40 @@ func Execute(ctx context.Context, pool *pgxpool.Pool, sql string) ([]Result, err
 	}
 	defer conn.Release()
 	pgConn := conn.Conn().PgConn()
+	defer reset(conn) // runs before Release
+	results, err := run(ctx, pgConn, sql)
+	if err != nil {
+		return nil, err
+	}
+	if pgConn.TxStatus() != 'I' {
+		return nil, apperr.New(apperr.CodeOpenTransaction,
+			"Transaction laissée ouverte : elle a été annulée. Exécutez BEGIN … COMMIT en une seule fois.")
+	}
+	return results, nil
+}
 
+// reset puts the connection back to a clean session before it returns to the pool, so SET,
+// temp tables or a dangling transaction from the editor never leak into browsing or other runs.
+// A connection that cannot be reset is closed (the pool then drops it).
+func reset(conn *pgxpool.Conn) {
+	pgConn := conn.Conn().PgConn()
+	if pgConn.IsClosed() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if pgConn.TxStatus() != 'I' {
+		if _, err := pgConn.Exec(ctx, "ROLLBACK").ReadAll(); err != nil {
+			_ = conn.Conn().Close(ctx)
+			return
+		}
+	}
+	if _, err := pgConn.Exec(ctx, "DISCARD ALL").ReadAll(); err != nil {
+		_ = conn.Conn().Close(ctx)
+	}
+}
+
+func run(ctx context.Context, pgConn *pgconn.PgConn, sql string) ([]Result, error) {
 	results := []Result{}
 	mrr := pgConn.Exec(ctx, sql)
 	for mrr.NextResult() {
@@ -68,12 +104,6 @@ func Execute(ctx context.Context, pool *pgxpool.Pool, sql string) ([]Result, err
 	}
 	if err := mrr.Close(); err != nil {
 		return nil, err
-	}
-
-	if pgConn.TxStatus() != 'I' {
-		_, _ = pgConn.Exec(context.Background(), "ROLLBACK").ReadAll()
-		return nil, apperr.New(apperr.CodeOpenTransaction,
-			"Transaction laissée ouverte : elle a été annulée. Exécutez BEGIN … COMMIT en une seule fois.")
 	}
 	return results, nil
 }

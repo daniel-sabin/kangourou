@@ -104,3 +104,34 @@ func TestExecuteRollsBackOpenTransaction(t *testing.T) {
 		t.Fatalf("open transaction must be rolled back, count=%s", *res[0].Rows[0][0])
 	}
 }
+
+func TestExecuteDoesNotLeakSessionState(t *testing.T) {
+	pool, _ := testpg.DB(t)
+	ctx := context.Background()
+	if _, err := Execute(ctx, pool, "SET search_path = nope; SET TimeZone = 'Pacific/Kiritimati'"); err != nil {
+		t.Fatal(err)
+	}
+	// every pooled connection must be back to defaults
+	for range 10 {
+		var path, tz string
+		if err := pool.QueryRow(ctx, "SELECT current_setting('search_path'), current_setting('TimeZone')").Scan(&path, &tz); err != nil {
+			t.Fatal(err)
+		}
+		if path == "nope" || tz == "Pacific/Kiritimati" {
+			t.Fatalf("editor settings leaked into the pool: search_path=%s TimeZone=%s", path, tz)
+		}
+	}
+}
+
+func TestExecuteFailedTransactionDoesNotPoisonPool(t *testing.T) {
+	pool, _ := testpg.DB(t)
+	ctx := context.Background()
+	if _, err := Execute(ctx, pool, "BEGIN; SELECT 1/0;"); err == nil {
+		t.Fatal("expected division by zero")
+	}
+	for range 10 {
+		if _, err := Execute(ctx, pool, "SELECT 1"); err != nil {
+			t.Fatalf("pool poisoned by aborted transaction: %v", err)
+		}
+	}
+}
