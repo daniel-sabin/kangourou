@@ -45,6 +45,16 @@ func Validation(column, message string) *Error {
 	return &Error{Code: CodeValidation, Message: message, Column: column}
 }
 
+// FromSession maps errors raised on an already-open connection: failing to (re)dial the server
+// there means the connection was lost, not that the user's settings are wrong.
+func FromSession(err error) error {
+	var connectErr *pgconn.ConnectError
+	if errors.As(err, &connectErr) {
+		return New(CodeConnectionLost, "Connexion perdue : "+connectErr.Error())
+	}
+	return From(err)
+}
+
 // From maps any error to an *Error. It returns nil for nil.
 func From(err error) error {
 	if err == nil {

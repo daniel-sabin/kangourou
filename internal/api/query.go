@@ -22,7 +22,7 @@ func NewQueryService(sessions *session.Manager) *QueryService {
 func (s *QueryService) Execute(connID, queryID, sql string) ([]sqlexec.Result, error) {
 	pool, err := s.sessions.Pool(connID)
 	if err != nil {
-		return nil, apperr.From(err)
+		return nil, apperr.FromSession(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
@@ -40,7 +40,7 @@ func (s *QueryService) Execute(connID, queryID, sql string) ([]sqlexec.Result, e
 		if ctx.Err() != nil {
 			return nil, apperr.New(apperr.CodeCanceled, "Requête annulée")
 		}
-		return nil, apperr.From(err)
+		return nil, apperr.FromSession(err)
 	}
 	return res, nil
 }

@@ -96,3 +96,14 @@ func TestFromUnknown(t *testing.T) {
 		t.Fatalf("unexpected %+v", ae)
 	}
 }
+
+func TestFromSessionKeepsOtherMappings(t *testing.T) {
+	var ae *Error
+	errors.As(FromSession(&pgconn.PgError{Code: "42P01", Message: "m"}), &ae)
+	if ae.Code != "42P01" {
+		t.Fatalf("got %s", ae.Code)
+	}
+	if FromSession(nil) != nil {
+		t.Fatal("nil must stay nil")
+	}
+}

@@ -3,6 +3,10 @@ package api
 import (
 	"context"
 	"errors"
+	"io"
+	"net"
+	"strconv"
+	"sync"
 	"path/filepath"
 	"testing"
 	"time"
@@ -166,5 +170,73 @@ func TestBrowseAfterBackendTerminated(t *testing.T) {
 	}
 	if _, err := s.browse.FetchRows(cfg.ID, req); err != nil {
 		t.Fatalf("after reconnect: %v", err)
+	}
+}
+
+// tcpProxy forwards a local port to target; stop() closes the listener and every live connection,
+// which looks to the client like the server went away.
+func tcpProxy(t *testing.T, target string) (addr string, stop func()) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var conns []net.Conn
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			up, err := net.Dial("tcp", target)
+			if err != nil {
+				c.Close()
+				continue
+			}
+			mu.Lock()
+			conns = append(conns, c, up)
+			mu.Unlock()
+			go func() { _, _ = io.Copy(up, c); up.Close() }()
+			go func() { _, _ = io.Copy(c, up); c.Close() }()
+		}
+	}()
+	stop = func() {
+		ln.Close()
+		mu.Lock()
+		defer mu.Unlock()
+		for _, c := range conns {
+			c.Close()
+		}
+	}
+	t.Cleanup(stop)
+	return ln.Addr().String(), stop
+}
+
+func TestBrowseWhenServerUnreachableIsConnectionLost(t *testing.T) {
+	pool, info := testpg.DB(t)
+	testpg.Exec(t, pool, "CREATE TABLE users (id int PRIMARY KEY)")
+	addr, stop := tcpProxy(t, net.JoinHostPort(info.Host, strconv.Itoa(info.Port)))
+	host, port, _ := net.SplitHostPort(addr)
+	p, _ := strconv.Atoi(port)
+	proxied := info
+	proxied.Host, proxied.Port = host, p
+
+	s := newServices(t)
+	cfg, _ := s.conn.Save(saveInput(proxied))
+	if err := s.conn.Connect(cfg.ID); err != nil {
+		t.Fatal(err)
+	}
+	req := browse.Request{Schema: "public", Table: "users"}
+	if _, err := s.browse.FetchRows(cfg.ID, req); err != nil {
+		t.Fatal(err)
+	}
+	stop()
+	_, err := s.browse.FetchRows(cfg.ID, req)
+	if errCode(err) != apperr.CodeConnectionLost {
+		t.Fatalf("expected connection_lost, got %v", err)
+	}
+	if _, err := s.query.Execute(cfg.ID, "q", "SELECT 1"); errCode(err) != apperr.CodeConnectionLost {
+		t.Fatalf("query: expected connection_lost, got %v", err)
 	}
 }

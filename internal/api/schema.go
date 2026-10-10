@@ -30,13 +30,13 @@ func (s *SchemaService) GetSchema(connID string) (*schema.Schema, error) {
 	}
 	pool, err := s.sessions.Pool(connID)
 	if err != nil {
-		return nil, apperr.From(err)
+		return nil, apperr.FromSession(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	loaded, err := schema.Load(ctx, pool)
 	if err != nil {
-		return nil, apperr.From(err)
+		return nil, apperr.FromSession(err)
 	}
 	s.mu.Lock()
 	s.cache[connID] = loaded
