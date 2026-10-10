@@ -240,3 +240,29 @@ func TestBrowseWhenServerUnreachableIsConnectionLost(t *testing.T) {
 		t.Fatalf("query: expected connection_lost, got %v", err)
 	}
 }
+
+func TestDisconnectDoesNotWaitForRunningQuery(t *testing.T) {
+	_, info := testpg.DB(t)
+	s := newServices(t)
+	cfg, _ := s.conn.Save(saveInput(info))
+	_ = s.conn.Connect(cfg.ID)
+	done := make(chan error, 1)
+	go func() {
+		_, err := s.query.Execute(cfg.ID, "long", "SELECT pg_sleep(10)")
+		done <- err
+	}()
+	time.Sleep(300 * time.Millisecond)
+	start := time.Now()
+	_ = s.conn.Disconnect(cfg.ID)
+	if d := time.Since(start); d > time.Second {
+		t.Fatalf("Disconnect blocked %v", d)
+	}
+	select {
+	case err := <-done:
+		if errCode(err) != apperr.CodeCanceled {
+			t.Fatalf("running query must be canceled, got %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("running query was not interrupted")
+	}
+}

@@ -21,7 +21,7 @@ func NewBrowseService(sessions *session.Manager, schemas *SchemaService, store *
 }
 
 func (s *BrowseService) FetchRows(connID string, req browse.Request) (*browse.Result, error) {
-	pool, err := s.sessions.Pool(connID)
+	pool, sessionCtx, err := s.sessions.Session(connID)
 	if err != nil {
 		return nil, apperr.FromSession(err)
 	}
@@ -34,7 +34,7 @@ func (s *BrowseService) FetchRows(connID string, req browse.Request) (*browse.Re
 		return nil, apperr.FromSession(err)
 	}
 	timeout := time.Duration(cfg.WithDefaults().StatementTimeoutSeconds) * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout+5*time.Second)
+	ctx, cancel := context.WithTimeout(sessionCtx, timeout+5*time.Second)
 	defer cancel()
 	res, err := browse.Fetch(ctx, pool, t, req, browse.Options{StatementTimeout: timeout, CountTimeout: 2 * time.Second})
 	if err != nil {

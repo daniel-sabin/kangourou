@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"kangourou/internal/apperr"
 	"kangourou/internal/testpg"
@@ -54,8 +55,13 @@ func TestManagerReopenReplacesPool(t *testing.T) {
 	if first == second {
 		t.Fatal("reopen must create a new pool")
 	}
-	if err := first.Ping(ctx); err == nil {
-		t.Fatal("old pool must be closed")
+	// the old pool is closed in the background
+	deadline := time.Now().Add(2 * time.Second)
+	for first.Ping(ctx) == nil {
+		if time.Now().After(deadline) {
+			t.Fatal("old pool must be closed")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 

@@ -10,12 +10,20 @@ import (
 	"kangourou/internal/apperr"
 )
 
-type Manager struct {
-	mu    sync.RWMutex
-	pools map[string]*pgxpool.Pool
+// entry pairs a pool with a context that is canceled when the pool is closed or replaced,
+// so in-flight work on it stops instead of holding the pool open.
+type entry struct {
+	pool   *pgxpool.Pool
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-func NewManager() *Manager { return &Manager{pools: map[string]*pgxpool.Pool{}} }
+type Manager struct {
+	mu      sync.RWMutex
+	entries map[string]entry
+}
+
+func NewManager() *Manager { return &Manager{entries: map[string]entry{}} }
 
 func connect(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -33,18 +41,26 @@ func connect(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// Open connects and registers the pool under id, closing any previous pool for that id.
+// release cancels in-flight work and closes the pool in the background:
+// pgxpool.Close waits for every borrowed connection, which can take as long as a dead socket.
+func release(e entry) {
+	e.cancel()
+	go e.pool.Close()
+}
+
+// Open connects and registers the pool under id, releasing any previous pool for that id.
 func (m *Manager) Open(ctx context.Context, id, dsn string) error {
 	pool, err := connect(ctx, dsn)
 	if err != nil {
 		return err
 	}
+	sctx, cancel := context.WithCancel(context.Background())
 	m.mu.Lock()
-	old := m.pools[id]
-	m.pools[id] = pool
+	old, had := m.entries[id]
+	m.entries[id] = entry{pool: pool, ctx: sctx, cancel: cancel}
 	m.mu.Unlock()
-	if old != nil {
-		old.Close()
+	if had {
+		release(old)
 	}
 	return nil
 }
@@ -60,31 +76,37 @@ func (m *Manager) Test(ctx context.Context, dsn string) error {
 }
 
 func (m *Manager) Pool(id string) (*pgxpool.Pool, error) {
+	pool, _, err := m.Session(id)
+	return pool, err
+}
+
+// Session returns the pool and a context canceled when that pool is closed or replaced.
+func (m *Manager) Session(id string) (*pgxpool.Pool, context.Context, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	pool, ok := m.pools[id]
+	e, ok := m.entries[id]
 	if !ok {
-		return nil, apperr.New(apperr.CodeNotConnected, "Connexion non ouverte")
+		return nil, nil, apperr.New(apperr.CodeNotConnected, "Connexion non ouverte")
 	}
-	return pool, nil
+	return e.pool, e.ctx, nil
 }
 
 func (m *Manager) Close(id string) {
 	m.mu.Lock()
-	pool := m.pools[id]
-	delete(m.pools, id)
+	e, ok := m.entries[id]
+	delete(m.entries, id)
 	m.mu.Unlock()
-	if pool != nil {
-		pool.Close()
+	if ok {
+		release(e)
 	}
 }
 
 func (m *Manager) CloseAll() {
 	m.mu.Lock()
-	pools := m.pools
-	m.pools = map[string]*pgxpool.Pool{}
+	entries := m.entries
+	m.entries = map[string]entry{}
 	m.mu.Unlock()
-	for _, p := range pools {
-		p.Close()
+	for _, e := range entries {
+		release(e)
 	}
 }

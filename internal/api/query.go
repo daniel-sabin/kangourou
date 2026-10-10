@@ -20,11 +20,11 @@ func NewQueryService(sessions *session.Manager) *QueryService {
 }
 
 func (s *QueryService) Execute(connID, queryID, sql string) ([]sqlexec.Result, error) {
-	pool, err := s.sessions.Pool(connID)
+	pool, sessionCtx, err := s.sessions.Session(connID)
 	if err != nil {
 		return nil, apperr.FromSession(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(sessionCtx)
 	s.mu.Lock()
 	s.running[queryID] = cancel
 	s.mu.Unlock()
