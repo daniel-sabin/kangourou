@@ -62,10 +62,10 @@ func Load(ctx context.Context, q Querier) (*Schema, error) {
 	}
 	for rows.Next() {
 		var (
-			nsp, rel, relkind                           string
+			nsp, rel, relkind                            string
 			attname, typ, castType, typname, typcategory *string
-			nullable                                    *bool
-			enumValues                                  []string
+			nullable                                     *bool
+			enumValues                                   []string
 		)
 		if err := rows.Scan(&nsp, &rel, &relkind, &attname, &typ, &castType, &typname, &typcategory, &nullable, &enumValues); err != nil {
 			rows.Close()

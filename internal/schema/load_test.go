@@ -79,7 +79,7 @@ func TestLoadTablesAndKinds(t *testing.T) {
 func TestLoadColumns(t *testing.T) {
 	users := mustTable(t, load(t), "public", "users")
 	want := map[string]struct {
-		typ, cast, cat string
+		typ, cast, cat     string
 		nullable, sortable bool
 	}{
 		"id":         {"bigint", "bigint", CategoryNumber, false, true},
