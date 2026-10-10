@@ -23,8 +23,9 @@ export const connect = (id: string) => call<void>(() => ConnectionService.Connec
 export const disconnect = (id: string) => call<void>(() => ConnectionService.Disconnect(id))
 export const getSchema = (connId: string) => call<Schema>(() => SchemaService.GetSchema(connId))
 export const refreshSchema = (connId: string) => call<Schema>(() => SchemaService.RefreshSchema(connId))
-export const fetchRows = (connId: string, req: BrowseRequest) =>
-  call<BrowseResult>(() => BrowseService.FetchRows(connId, browse.Request.createFrom(req)))
+export const fetchRows = (connId: string, requestId: string, req: BrowseRequest) =>
+  call<BrowseResult>(() => BrowseService.FetchRows(connId, requestId, browse.Request.createFrom(req)))
+export const cancelFetch = (requestId: string) => call<void>(() => BrowseService.CancelFetch(requestId))
 export const executeQuery = (connId: string, queryId: string, sql: string) =>
   call<QueryResult[]>(() => QueryService.Execute(connId, queryId, sql))
 export const cancelQuery = (queryId: string) => call<void>(() => QueryService.Cancel(queryId))

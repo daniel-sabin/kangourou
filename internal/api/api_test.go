@@ -73,7 +73,7 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.browse.FetchRows(cfg.ID, browse.Request{Schema: "public", Table: "users"}); errCode(err) != apperr.CodeNotConnected {
+	if _, err := s.browse.FetchRows(cfg.ID, "r", browse.Request{Schema: "public", Table: "users"}); errCode(err) != apperr.CodeNotConnected {
 		t.Fatalf("expected not_connected, got %v", err)
 	}
 	if err := s.conn.Connect(cfg.ID); err != nil {
@@ -87,7 +87,7 @@ func TestEndToEnd(t *testing.T) {
 	if len(orders.ForeignKeys) != 1 {
 		t.Fatalf("fks %+v", orders.ForeignKeys)
 	}
-	res, err := s.browse.FetchRows(cfg.ID, browse.Request{Schema: "public", Table: "users",
+	res, err := s.browse.FetchRows(cfg.ID, "r", browse.Request{Schema: "public", Table: "users",
 		Filters: []browse.Filter{{Column: "id", Op: browse.OpEq, Value: "2"}}})
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestEndToEnd(t *testing.T) {
 	if len(res.Rows) != 1 || *res.Rows[0][1] != "bob" {
 		t.Fatalf("rows %+v", res.Rows)
 	}
-	if _, err := s.browse.FetchRows(cfg.ID, browse.Request{Schema: "public", Table: "nope"}); errCode(err) != apperr.CodeNotFound {
+	if _, err := s.browse.FetchRows(cfg.ID, "r", browse.Request{Schema: "public", Table: "nope"}); errCode(err) != apperr.CodeNotFound {
 		t.Fatalf("expected not_found, got %v", err)
 	}
 	qres, err := s.query.Execute(cfg.ID, "q1", "SELECT count(*) FROM orders")
@@ -153,7 +153,7 @@ func TestBrowseAfterBackendTerminated(t *testing.T) {
 	cfg, _ := s.conn.Save(saveInput(info))
 	_ = s.conn.Connect(cfg.ID)
 	req := browse.Request{Schema: "public", Table: "users"}
-	if _, err := s.browse.FetchRows(cfg.ID, req); err != nil {
+	if _, err := s.browse.FetchRows(cfg.ID, "r", req); err != nil {
 		t.Fatal(err)
 	}
 	_, err := pool.Exec(context.Background(),
@@ -161,14 +161,14 @@ func TestBrowseAfterBackendTerminated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.browse.FetchRows(cfg.ID, req)
+	_, err = s.browse.FetchRows(cfg.ID, "r", req)
 	if err != nil && errCode(err) != apperr.CodeConnectionLost {
 		t.Fatalf("a dead pooled connection must surface as connection_lost, got %v", err)
 	}
 	if err := s.conn.Connect(cfg.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.browse.FetchRows(cfg.ID, req); err != nil {
+	if _, err := s.browse.FetchRows(cfg.ID, "r", req); err != nil {
 		t.Fatalf("after reconnect: %v", err)
 	}
 }
@@ -228,11 +228,11 @@ func TestBrowseWhenServerUnreachableIsConnectionLost(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := browse.Request{Schema: "public", Table: "users"}
-	if _, err := s.browse.FetchRows(cfg.ID, req); err != nil {
+	if _, err := s.browse.FetchRows(cfg.ID, "r", req); err != nil {
 		t.Fatal(err)
 	}
 	stop()
-	_, err := s.browse.FetchRows(cfg.ID, req)
+	_, err := s.browse.FetchRows(cfg.ID, "r", req)
 	if errCode(err) != apperr.CodeConnectionLost {
 		t.Fatalf("expected connection_lost, got %v", err)
 	}
@@ -264,5 +264,19 @@ func TestDisconnectDoesNotWaitForRunningQuery(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("running query was not interrupted")
+	}
+}
+
+func TestCancelFetch(t *testing.T) {
+	pool, info := testpg.DB(t)
+	testpg.Exec(t, pool, "CREATE VIEW slow AS SELECT pg_sleep(10)::text AS x")
+	s := newServices(t)
+	cfg, _ := s.conn.Save(saveInput(info))
+	_ = s.conn.Connect(cfg.ID)
+	time.AfterFunc(300*time.Millisecond, func() { s.browse.CancelFetch("r1") })
+	start := time.Now()
+	_, err := s.browse.FetchRows(cfg.ID, "r1", browse.Request{Schema: "public", Table: "slow"})
+	if errCode(err) != apperr.CodeCanceled || time.Since(start) > 3*time.Second {
+		t.Fatalf("got %v after %v", err, time.Since(start))
 	}
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useConnections } from '../connections/store'
-import { fetchRows } from '../lib/api'
+import { cancelFetch, fetchRows } from '../lib/api'
 import { isConnectionLost } from '../lib/errors'
 import type { AppError, BrowseResult, Filter, Sort } from '../lib/types'
 import { type TableGroupTab, type TableView, useTabs } from '../tabs/store'
@@ -35,8 +35,9 @@ export function TableViewPanel({ tab, view }: { tab: TableGroupTab; view: TableV
   const requestKey = JSON.stringify([view.filters, view.sort, view.page])
   useEffect(() => {
     let cancelled = false
+    const requestId = crypto.randomUUID()
     setLoading(true)
-    fetchRows(tab.connId, { schema: tab.schema, table: tab.table, filters: view.filters, sort: view.sort, page: view.page })
+    fetchRows(tab.connId, requestId, { schema: tab.schema, table: tab.table, filters: view.filters, sort: view.sort, page: view.page })
       .then((r) => {
         if (cancelled) return
         setResult(r)
@@ -50,6 +51,8 @@ export function TableViewPanel({ tab, view }: { tab: TableGroupTab; view: TableV
       .finally(() => !cancelled && setLoading(false))
     return () => {
       cancelled = true
+      // free the pooled connection held by a request nobody waits for anymore
+      void cancelFetch(requestId).catch(() => {})
     }
     // requestKey captures filters/sort/page
     // eslint-disable-next-line react-hooks/exhaustive-deps
