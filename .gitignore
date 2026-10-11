@@ -1,0 +1,7 @@
+build/bin
+node_modules
+frontend/dist/*
+!frontend/dist/gitkeep
+.superpowers/
+/kangourou
+frontend/package.json.md5
