@@ -1,3 +1,4 @@
+import { IconClose } from '../brand/icons'
 import { viewLabel } from './labels'
 import { type TableGroupTab, useTabs } from './store'
 
@@ -15,7 +16,7 @@ export function SubTabBar({ tab }: { tab: TableGroupTab }) {
           onAuxClick={(e) => e.button === 1 && closeView(tab.id, v.id)}
         >
           {viewLabel(v, i)}
-          <button className="close" aria-label="Fermer la vue" onClick={(e) => { e.stopPropagation(); closeView(tab.id, v.id) }}>×</button>
+          <button className="close" aria-label="Fermer la vue" onClick={(e) => { e.stopPropagation(); closeView(tab.id, v.id) }}><IconClose size={12} /></button>
         </div>
       ))}
     </div>

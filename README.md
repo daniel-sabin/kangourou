@@ -13,6 +13,7 @@ make test-go-short  # tests Go unitaires uniquement
 make test-front     # tests Vitest
 make bindings       # régénère frontend/wailsjs après modification des services Go
 make build          # binaire dans build/bin
+make install        # build + installe Kangourou.app dans /Applications
 ```
 
 ## Architecture

@@ -1,3 +1,4 @@
+import { IconClose } from '../brand/icons'
 import { groupLabel } from './labels'
 import { useTabs } from './store'
 
@@ -16,7 +17,7 @@ export function TabBar() {
           onAuxClick={(e) => e.button === 1 && closeTab(t.id)}
         >
           {t.kind === 'table-group' ? groupLabel(t) : t.title}
-          <button className="close" aria-label="Fermer" onClick={(e) => { e.stopPropagation(); closeTab(t.id) }}>×</button>
+          <button className="close" aria-label="Fermer" onClick={(e) => { e.stopPropagation(); closeTab(t.id) }}><IconClose size={12} /></button>
         </div>
       ))}
     </div>

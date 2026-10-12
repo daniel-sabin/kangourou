@@ -3,6 +3,7 @@ import { Prec } from '@codemirror/state'
 import { type EditorView, keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
 import { useMemo, useRef } from 'react'
+import { IconPlay, IconPlayAll, IconStop } from '../brand/icons'
 import { useConnections } from '../connections/store'
 import { cancelQuery, executeQuery } from '../lib/api'
 import { isConnectionLost } from '../lib/errors'
@@ -79,15 +80,15 @@ export function QueryPanel({ tab }: { tab: QueryTab }) {
   return (
     <div className="query-panel">
       <div className="toolbar">
-        <button className="primary" disabled={tab.running} onClick={() => run('current')} title="Cmd/Ctrl+Entrée">Exécuter</button>
-        <button disabled={tab.running} onClick={() => run('all')} title="Cmd/Ctrl+Maj+Entrée">Tout exécuter</button>
-        {tab.running && tab.runningQueryId && <button className="danger" onClick={() => cancelQuery(tab.runningQueryId!)}>Annuler</button>}
-        {tab.running && <span className="muted">Exécution…</span>}
+        <button className="primary" disabled={tab.running} onClick={() => run('current')} title="Cmd/Ctrl+Entrée"><IconPlay size={12} />Exécuter</button>
+        <button disabled={tab.running} onClick={() => run('all')} title="Cmd/Ctrl+Maj+Entrée"><IconPlayAll size={12} />Tout exécuter</button>
+        {tab.running && tab.runningQueryId && <button className="danger" onClick={() => cancelQuery(tab.runningQueryId!)}><IconStop size={11} />Annuler</button>}
+        {tab.running && <span className="running">Exécution…</span>}
       </div>
       <div className="query-editor">
         <CodeMirror
           value={tab.sql}
-          theme="dark"
+          theme="light"
           height="100%"
           extensions={extensions}
           onChange={(sql) => updateQuery(tab.id, { sql })}

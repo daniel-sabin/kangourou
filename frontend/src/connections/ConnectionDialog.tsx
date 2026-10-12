@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Logo } from '../brand/Logo'
 import { testConnection } from '../lib/api'
 import type { AppError, ConnectionConfig, SSLMode } from '../lib/types'
 import { useConnections } from './store'
@@ -57,7 +58,10 @@ export function ConnectionDialog({ initial, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Connexion">
-        <h2>{editing ? 'Modifier la connexion' : 'Nouvelle connexion'}</h2>
+        <div className="modal-head">
+          <Logo size={30} />
+          <h2>{editing ? 'Modifier la connexion' : 'Nouvelle connexion'}</h2>
+        </div>
         <label>Nom<input className={invalid('name')} value={config.name} onChange={(e) => field('name', e.target.value)} /></label>
         <div className="row">
           <label className="grow">Hôte<input className={invalid('host')} value={config.host} onChange={(e) => field('host', e.target.value)} /></label>
@@ -97,7 +101,7 @@ export function ConnectionDialog({ initial, onClose }: Props) {
           {editing && <button className="danger" onClick={onDelete}>Supprimer</button>}
           <span className="grow" />
           <button onClick={onTest}>Tester</button>
-          <button onClick={onClose}>Annuler</button>
+          <button className="ghost" onClick={onClose}>Annuler</button>
           <button className="primary" onClick={onSave}>Enregistrer</button>
         </div>
       </div>
