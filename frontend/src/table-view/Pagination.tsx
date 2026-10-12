@@ -1,3 +1,5 @@
+import { IconChevronLeft, IconChevronRight, IconRefresh } from '../brand/icons'
+
 interface Props {
   page: number
   pageSize: number
@@ -19,14 +21,14 @@ export function Pagination({ page, pageSize, rowCount, total, totalIsEstimate, h
   const from = rowCount === 0 ? 0 : page * pageSize + 1
   return (
     <div className="footer">
-      <button disabled={page === 0 || loading} onClick={() => onPage(page - 1)} aria-label="Page précédente">‹</button>
-      <span>Page {page + 1}</span>
-      <button disabled={!hasMore || loading} onClick={() => onPage(page + 1)} aria-label="Page suivante">›</button>
+      <button className="icon" disabled={page === 0 || loading} onClick={() => onPage(page - 1)} aria-label="Page précédente"><IconChevronLeft /></button>
+      <span className="page-num">Page {page + 1}</span>
+      <button className="icon" disabled={!hasMore || loading} onClick={() => onPage(page + 1)} aria-label="Page suivante"><IconChevronRight /></button>
       <span className="muted">{from}–{page * pageSize + rowCount}</span>
       <span className="grow" />
-      {loading && <span className="muted">Chargement…</span>}
-      <span>{totalLabel(total, totalIsEstimate)}</span>
-      <button onClick={onReload} title="Recharger">⟳</button>
+      {loading && <span className="loading">Chargement…</span>}
+      <span className="count">{totalLabel(total, totalIsEstimate)}</span>
+      <button className="icon ghost" onClick={onReload} title="Recharger"><IconRefresh /></button>
     </div>
   )
 }

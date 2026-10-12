@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useConnections } from '../connections/store'
+import { Splash } from '../brand/Splash'
 import { Sidebar } from '../sidebar/Sidebar'
 import { TabBar } from '../tabs/TabBar'
 import { ConnectionBanner } from './ConnectionBanner'
@@ -21,6 +22,7 @@ export default function App() {
         <TabBar />
         <TabContent />
       </main>
+      <Splash />
     </div>
   )
 }

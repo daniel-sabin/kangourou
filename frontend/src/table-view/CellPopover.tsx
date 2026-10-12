@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { IconClose, IconCopy } from '../brand/icons'
 import type { Cell } from '../lib/types'
 
 function pretty(value: Cell): string {
@@ -24,8 +25,8 @@ export function CellPopover({ column, value, onClose }: { column: string; value:
         <div className="toolbar">
           <strong>{column}</strong>
           <span className="grow" />
-          {value !== null && <button onClick={() => navigator.clipboard.writeText(value)}>Copier</button>}
-          <button onClick={onClose}>Fermer</button>
+          {value !== null && <button onClick={() => navigator.clipboard.writeText(value)}><IconCopy size={13} />Copier</button>}
+          <button className="ghost" onClick={onClose}><IconClose size={13} />Fermer</button>
         </div>
         <pre>{pretty(value)}</pre>
       </div>

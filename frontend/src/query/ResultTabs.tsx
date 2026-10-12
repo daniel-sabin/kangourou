@@ -21,7 +21,7 @@ export function ResultTabs({ results }: { results: QueryResult[] }) {
         <>
           <DataGrid key={active} columns={current.columns ?? []} rows={current.rows ?? []} />
           <div className="footer">
-            {(current.rows ?? []).length} ligne(s)
+            <span className="count">{(current.rows ?? []).length} ligne(s)</span>
             {current.truncated && <span className="error">· résultat tronqué à 10 000 lignes</span>}
           </div>
         </>

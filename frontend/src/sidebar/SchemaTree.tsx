@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { IconEye, IconSearch, IconTable } from '../brand/icons'
 import type { Schema, Table } from '../lib/types'
 import { useTabs } from '../tabs/store'
 
@@ -20,7 +21,10 @@ export function SchemaTree({ connId, schema }: { connId: string; schema: Schema 
 
   return (
     <div className="schema-tree">
-      <input type="search" placeholder="Rechercher une table" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="search">
+        <IconSearch size={13} />
+        <input type="search" placeholder="Rechercher une table" value={query} onChange={(e) => setQuery(e.target.value)} />
+      </div>
       {groups.map(([name, tables]) => (
         <div key={name}>
           <div className="schema-name">{name}</div>
@@ -31,7 +35,8 @@ export function SchemaTree({ connId, schema }: { connId: string; schema: Schema 
               title={`${t.schema}.${t.name}`}
               onClick={(e) => openTable(connId, t.schema, t.name, { newView: e.metaKey || e.ctrlKey })}
             >
-              {t.name}
+              {t.kind === 'table' ? <IconTable size={13} /> : <IconEye size={13} />}
+              <span className="name">{t.name}</span>
               {KIND_LABEL[t.kind] && <span className="kind">{KIND_LABEL[t.kind]}</span>}
             </button>
           ))}
